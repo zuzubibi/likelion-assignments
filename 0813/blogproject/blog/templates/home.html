@@ -23,11 +23,12 @@
             {% for post in posts.all %}
             <tr>
                 <td>{{forloop.counter}}</td>
-                <td>{{post.title}}</td>
+                <td><a href= "{%url 'defail' post.id %}">{{post.title}}</a></td>
                 <td>{{post.pub_date}}</td>
-                <td>{{post.body}}</td>
+                <td>{{post.summary}}...</td>
             </tr>
             {% endfor %}
+            <a href= "{%url 'new' %}"> Add Post </a>
         </tbody>
     </table>
 </body>
