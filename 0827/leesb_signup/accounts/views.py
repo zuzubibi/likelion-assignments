@@ -1,18 +1,61 @@
+
 from django.shortcuts import render,redirect # return값 redircet 추가 
 from django.contrib.auth.models import User  # User model 연결 
 from django.contrib import auth
-
+from django.contrib.sites.shortcuts import get_current_site
+from django.template.loader import render_to_string
+from django.utils.http import urlsafe_base64_encode,urlsafe_base64_decode
+from django.core.mail import EmailMessage
+from django.utils.encoding import force_bytes, force_text
+from .tokens import account_activation_token
+ 
 def signup(request):
-    # POST method 요청이 들어올때
-    if request.method == 'POST':
-        # 입력한 password1과 password2가 만약 같으면
-        if request.POST['password1'] == request.POST['password2']:
-            # 새로운 회원을 만들고
-            User.objects.create_user(request.POST['username'], password=request.POST['password1']) 
-        # index로 돌아간다. 
-        return redirect('home')  
-    # 위의 경우가 아닐때 그냥 signup페이지를 다시 리턴한다. 
+    if request.method == "POST":
+        if request.POST["password1"] == request.POST["password2"]:
+            user = User.objects.create_user(request.POST["username"], request.POST["email"], request.POST["password1"])
+            user.is_active = False
+            user.save()
+            current_site = get_current_site(request) 
+            message = render_to_string('activation_email.html', {
+                'user': user,
+                'domain': current_site.domain,
+                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                'token': account_activation_token.make_token(user),
+            })
+            mail_title = "계정 활성화 확인 이메일"
+            mail_to = request.POST["email"]
+            email = EmailMessage(mail_title, message, to=[mail_to])
+            email.send()
+        return render(request, 'home.html', { 'error': 'Please check your account activation email'})
     return render(request, 'signup.html')
+
+
+# def signup(request):
+#     # POST method 요청이 들어올때
+#     if request.method == 'POST':
+#         # 입력한 password1과 password2가 만약 같으면
+#         if request.POST['password1'] == request.POST['password2']:
+#             # 새로운 회원을 만들고
+#             User.objects.create_user(request.POST['username'], password=request.POST['password1']) 
+#         # index로 돌아간다. 
+#         return redirect('home')  
+#     # 위의 경우가 아닐때 그냥 signup페이지를 다시 리턴한다. 
+#     return render(request, 'signup.html')
+
+def activate(request, uidb64, token):
+    try:
+        uid = force_text(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except(TypeError, ValueError, OverflowError, User.DoesNotExsit):
+        user = None
+    if user is not None and account_activation_token.check_token(user, token):
+        user.is_active = True
+        user.save()
+        auth.login(request, user)
+        return render(request, 'home.html', { 'error': 'Your Accounts is activate'})
+    else:
+        return render(request, 'home.html', { 'error': '계정 활성화 오류'})
+    return 
 
 def login(request):
     # POST method 요청이 들어올떄 
