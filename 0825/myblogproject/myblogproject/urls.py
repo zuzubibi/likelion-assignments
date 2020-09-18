@@ -20,4 +20,5 @@ from django.conf.urls import url #추가 작성
 urlpatterns = [
     path('admin/', admin.site.urls),
     url('', include('myblog.urls')),
+    path('accounts/', include('allauth.urls')),
 ]
